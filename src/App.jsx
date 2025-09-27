@@ -54,6 +54,8 @@ function DashboardApp() {
   const [activeCampaign, setActiveCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isServerStarting, setIsServerStarting] = useState(false);
+  const [retryAttempts, setRetryAttempts] = useState(0);
 
   // Get current tab from URL path
   const getCurrentTab = () => {
@@ -72,6 +74,13 @@ function DashboardApp() {
   const loadInitialData = async () => {
     try {
       setError(null);
+      setRetryAttempts(prev => prev + 1);
+      
+      // After 2 attempts, assume server is starting
+      if (retryAttempts >= 2) {
+        setIsServerStarting(true);
+      }
+      
       const [imagesResponse, campaignsResponse] = await Promise.all([
         imageAPI.getAll(),
         campaignAPI.getAll()
@@ -82,11 +91,32 @@ function DashboardApp() {
       
       const active = campaignsResponse.data.find(c => c.isActive);
       setActiveCampaign(active);
+      
+      // Reset states on success
+      setIsServerStarting(false);
+      setRetryAttempts(0);
+      setLoading(false); // Set loading to false on success
     } catch (error) {
       console.error('Failed to load data:', error);
-      setError('Failed to connect to server. Make sure your backend is running.');
-    } finally {
-      setLoading(false);
+      
+      if (retryAttempts >= 2) {
+        setError('Server is starting up (free tier cold start). This may take up to 30 seconds...');
+        setIsServerStarting(true);
+        
+        // Auto-retry every 3 seconds when server is starting
+        setTimeout(() => {
+          if (retryAttempts < 10) { // Limit retries
+            loadInitialData();
+          } else {
+            setError('Failed to connect to server after multiple attempts. Please check your connection and try again.');
+            setIsServerStarting(false);
+            setLoading(false); // Stop loading on final failure
+          }
+        }, 3000);
+      } else {
+        setError('Failed to connect to server. Retrying...');
+        setTimeout(loadInitialData, 2000);
+      }
     }
   };
 
@@ -114,7 +144,34 @@ function DashboardApp() {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center text-slate-300">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-          <p className="text-lg">Loading DM Dashboard...</p>
+          
+          {isServerStarting ? (
+            <>
+              <p className="text-lg">Starting Server...</p>
+              <p className="text-sm text-slate-400 mt-2">Free tier cold start - this may take up to 30 seconds</p>
+              <div className="mt-4 flex justify-center items-center space-x-1">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-2 h-2 bg-amber-400 rounded-full animate-bounce"
+                    style={{ animationDelay: `${i * 0.15}s` }}
+                  ></div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500 mt-3">
+                Attempt {retryAttempts}/10
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg">Loading DM Dashboard...</p>
+              {retryAttempts > 0 && (
+                <p className="text-sm text-yellow-400 mt-2">
+                  Retrying connection... ({retryAttempts}/10)
+                </p>
+              )}
+            </>
+          )}
         </div>
       </div>
     );
@@ -123,16 +180,43 @@ function DashboardApp() {
   if (error) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-center text-red-400 max-w-md">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold mb-2">Connection Error</h2>
-          <p className="mb-4">{error}</p>
-          <button 
-            onClick={loadInitialData}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors"
-          >
-            Retry Connection
-          </button>
+        <div className="text-center max-w-md">
+          {isServerStarting ? (
+            <div className="text-amber-400">
+              <div className="text-6xl mb-4">🔄</div>
+              <h2 className="text-xl font-semibold mb-2">Server Starting...</h2>
+              <p className="mb-4 text-slate-300">{error}</p>
+              <div className="flex justify-center items-center space-x-1 mb-4">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-3 h-3 bg-amber-400 rounded-full animate-bounce"
+                    style={{ animationDelay: `${i * 0.15}s` }}
+                  ></div>
+                ))}
+              </div>
+              <p className="text-sm text-slate-400">
+                Auto-retrying... ({retryAttempts}/10)
+              </p>
+            </div>
+          ) : (
+            <div className="text-red-400">
+              <div className="text-6xl mb-4">⚠️</div>
+              <h2 className="text-xl font-semibold mb-2">Connection Error</h2>
+              <p className="mb-4 text-slate-300">{error}</p>
+              <button 
+                onClick={() => {
+                  setRetryAttempts(0);
+                  setIsServerStarting(false);
+                  setLoading(true);
+                  loadInitialData();
+                }}
+                className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors"
+              >
+                Retry Connection
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
