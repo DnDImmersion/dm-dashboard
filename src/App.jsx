@@ -1,17 +1,69 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { imageAPI, campaignAPI } from './services/api';
 import { Dice6, Image, Users, Monitor, Loader2 } from 'lucide-react';
 import ImageLibrary from './components/ImageLibrary/ImageLibrary';
 import CampaignManager from './components/CampaignManager/CampaignManager';
 import DisplayController from './components/DisplayController/DisplayController';
 
+// Simple Spotify callback component
+const SpotifyCallback = () => {
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    
+    if (code) {
+      // Store the code in sessionStorage so SpotifyControls can pick it up
+      sessionStorage.setItem('spotify_oauth_code', code);
+      // Redirect to display page where SpotifyControls can handle it
+      navigate('/display');
+    } else {
+      // No code, just go to display
+      navigate('/display');
+    }
+  }, [navigate]);
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="text-center text-slate-300">
+        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+        <p className="text-lg">Connecting to Spotify...</p>
+      </div>
+    </div>
+  );
+};
+
+// Main App wrapper with Router
 function App() {
+  return (
+    <Router>
+      <DashboardApp />
+    </Router>
+  );
+}
+
+// Dashboard component with routing logic
+function DashboardApp() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   const [images, setImages] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [activeCampaign, setActiveCampaign] = useState(null);
-  const [activeTab, setActiveTab] = useState('library');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Get current tab from URL path
+  const getCurrentTab = () => {
+    const path = location.pathname;
+    if (path === '/campaigns') return 'campaigns';
+    if (path === '/display') return 'display';
+    return 'library'; // default
+  };
+
+  const currentTab = getCurrentTab();
 
   useEffect(() => {
     loadInitialData();
@@ -48,10 +100,14 @@ function App() {
   };
 
   const tabConfig = [
-    { id: 'library', label: 'Image Library', icon: Image },
-    { id: 'campaigns', label: 'Campaigns', icon: Users },
-    { id: 'display', label: 'Display Control', icon: Monitor }
+    { id: 'library', label: 'Image Library', icon: Image, path: '/' },
+    { id: 'campaigns', label: 'Campaigns', icon: Users, path: '/campaigns' },
+    { id: 'display', label: 'Display Control', icon: Monitor, path: '/display' }
   ];
+
+  const handleTabChange = (path) => {
+    navigate(path);
+  };
 
   if (loading) {
     return (
@@ -109,12 +165,12 @@ function App() {
       <nav className="bg-slate-800 border-b border-slate-700">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex space-x-1">
-            {tabConfig.map(({ id, label, icon: Icon }) => (
+            {tabConfig.map(({ id, label, icon: Icon, path }) => (
               <button
                 key={id}
-                onClick={() => setActiveTab(id)}
+                onClick={() => handleTabChange(path)}
                 className={`flex items-center space-x-2 px-4 py-3 border-b-2 transition-colors ${
-                  activeTab === id
+                  currentTab === id
                     ? 'border-amber-400 text-amber-400 bg-slate-700'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
                 }`}
@@ -127,27 +183,45 @@ function App() {
         </div>
       </nav>
 
-      {/* Main Content */}
+      {/* Main Content with Routes */}
       <main className="max-w-7xl mx-auto p-4">
-        {activeTab === 'library' && (
-          <ImageLibrary 
-            images={images} 
-            onImagesChange={refreshImages}
-            activeCampaign={activeCampaign}
+        <Routes>
+          <Route 
+            path="/" 
+            element={
+              <ImageLibrary 
+                images={images} 
+                onImagesChange={refreshImages}
+                activeCampaign={activeCampaign}
+              />
+            } 
           />
-        )}
-        {activeTab === 'campaigns' && (
-          <CampaignManager 
-            campaigns={campaigns}
-            activeCampaign={activeCampaign}
-            onCampaignsChange={loadInitialData}
+          <Route 
+            path="/campaigns" 
+            element={
+              <CampaignManager 
+                campaigns={campaigns}
+                activeCampaign={activeCampaign}
+                onCampaignsChange={loadInitialData}
+              />
+            } 
           />
-        )}
-        {activeTab === 'display' && (
-          <DisplayController 
-            activeCampaign={activeCampaign}
+          <Route 
+            path="/display" 
+            element={
+              <DisplayController 
+                activeCampaign={activeCampaign}
+              />
+            } 
           />
-        )}
+          {/* Spotify OAuth callback route */}
+          <Route 
+            path="/callback" 
+            element={<SpotifyCallback />} 
+          />
+          {/* Redirect any unknown routes to home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
     </div>
   );

@@ -11,8 +11,36 @@ export const imageAPI = {
   create: (data) => api.post('/images', data),
   delete: (id) => api.delete(`/images/${id}`),
   importFromCloudinary: (data) => api.post('/images/import-from-cloudinary', data),
-  searchUnsplash: (query, perPage = 20) => 
-    api.get('/images/search-unsplash', { params: { query, per_page: perPage } })
+  searchPixabay: (query, imageType = 'illustration', perPage = 20, page = 1) => 
+    api.get('/images/search-pixabay', { params: { query, image_type: imageType, per_page: perPage, page } }),
+  searchUnsplash: (query, perPage = 20, page = 1) => 
+    api.get('/images/search-unsplash', { params: { query, per_page: perPage, page } }),
+  
+  // NEW UPLOAD METHODS
+  // Upload image file to Cloudinary via server
+  uploadImage: (imageFile, imageData) => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    formData.append('name', imageData.name);
+    formData.append('category', imageData.category);
+    formData.append('tags', Array.isArray(imageData.tags) ? imageData.tags.join(',') : imageData.tags);
+
+    return api.post('/images/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  // Upload image from URL (for Pixabay/Unsplash)
+  uploadFromUrl: (imageData) => {
+    return api.post('/images/upload-from-url', imageData);
+  },
+
+  // Bulk upload from URLs
+  uploadBulkFromUrls: (imagesArray) => {
+    return api.post('/images/upload-bulk-from-urls', { images: imagesArray });
+  }
 };
 
 export const campaignAPI = {
@@ -23,9 +51,9 @@ export const campaignAPI = {
 
 export const campaignImageAPI = {
   getCampaignImages: (campaignId) => api.get(`/campaign-images/${campaignId}/images`),
-  addToCampaign: (campaignId, imageId) => 
+  addToCampaign: (campaignId, imageId) =>
     api.post(`/campaign-images/${campaignId}/images`, { imageId }),
-  bulkAddToCampaign: (campaignId, imageIds) => 
+  bulkAddToCampaign: (campaignId, imageIds) =>
     api.post(`/campaign-images/${campaignId}/images/bulk`, { imageIds })
 };
 
@@ -35,5 +63,10 @@ export const spotifyAPI = {
   getPlaylists: () => api.get('/spotify/playlists'),
   getDevices: () => api.get('/spotify/devices'),
   play: (playlistUri, deviceId) => api.post('/spotify/play', { playlistUri, deviceId }),
-  pause: () => api.post('/spotify/pause')
+  pause: () => api.post('/spotify/pause'),
+  resume: (deviceId = null) => api.post('/spotify/resume', { deviceId }),
+  setShuffle: (state) => api.put('/spotify/shuffle', { state }),
+  getCurrentPlayback: () => api.get('/spotify/current-playback'),
+  skipNext: () => api.post('/spotify/next'),
+  skipPrevious: () => api.post('/spotify/previous')
 };
