@@ -27,8 +27,9 @@ const DisplayController = ({ activeCampaign }) => {
 
   // Initialize socket connection
   useEffect(() => {
-    const newSocket = io('http://localhost:5000');
-    
+    const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+    const newSocket = io(serverUrl);
+
     newSocket.on('connect', () => {
       setIsSocketConnected(true);
       console.log('Dashboard connected to server');
@@ -66,7 +67,7 @@ const DisplayController = ({ activeCampaign }) => {
 
   const filteredImages = campaignImages.filter(image => {
     const matchesSearch = image.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         image.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+      image.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = selectedCategory === 'all' || image.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -74,7 +75,7 @@ const DisplayController = ({ activeCampaign }) => {
   const displayImage = (image) => {
     setCurrentDisplayImage(image);
     setIsDisplayActive(true);
-    
+
     // Send to display via WebSocket
     if (socket && isSocketConnected) {
       socket.emit('display-image', image);
@@ -87,7 +88,7 @@ const DisplayController = ({ activeCampaign }) => {
   const hideDisplay = () => {
     setCurrentDisplayImage(null);
     setIsDisplayActive(false);
-    
+
     // Send hide command via WebSocket
     if (socket && isSocketConnected) {
       socket.emit('hide-display');
@@ -122,7 +123,7 @@ const DisplayController = ({ activeCampaign }) => {
           <span className="text-sm text-slate-400">•</span>
           <span className="text-sm text-slate-400">{filteredImages.length} images</span>
         </div>
-        
+
         <button
           onClick={() => setShowSpotifyControls(!showSpotifyControls)}
           className="flex items-center space-x-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg transition-colors text-sm"
@@ -165,17 +166,16 @@ const DisplayController = ({ activeCampaign }) => {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
-                  <div className={`flex items-center space-x-1 ${
-                    isDisplayActive ? 'text-emerald-400' : 'text-slate-400'
-                  }`}>
+                  <div className={`flex items-center space-x-1 ${isDisplayActive ? 'text-emerald-400' : 'text-slate-400'
+                    }`}>
                     {isDisplayActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     <span className="text-xs font-medium">
                       {isDisplayActive ? 'Active' : 'Hidden'}
                     </span>
                   </div>
-                  
+
                   <button
                     onClick={hideDisplay}
                     className="p-1.5 bg-red-600 hover:bg-red-700 rounded transition-colors"
@@ -196,7 +196,7 @@ const DisplayController = ({ activeCampaign }) => {
                 <MonitorOff className="w-4 h-4" />
                 <span>Black Screen</span>
               </button>
-              
+
               <button className="flex items-center space-x-2 bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg transition-colors text-sm">
                 <Grid3X3 className="w-4 h-4" />
                 <span>Grid</span>
@@ -216,7 +216,7 @@ const DisplayController = ({ activeCampaign }) => {
                 className="w-full pl-10 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm"
               />
             </div>
-            
+
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -250,13 +250,13 @@ const DisplayController = ({ activeCampaign }) => {
                 <div className="text-center">
                   <div className="text-4xl mb-2">🎭</div>
                   <h3 className="text-lg font-semibold text-slate-300 mb-1">
-                    {searchTerm || selectedCategory !== 'all' 
-                      ? 'No matching images' 
+                    {searchTerm || selectedCategory !== 'all'
+                      ? 'No matching images'
                       : 'No images in campaign'
                     }
                   </h3>
                   <p className="text-slate-400 text-sm">
-                    {campaignImages.length === 0 
+                    {campaignImages.length === 0
                       ? 'Add some images to this campaign first'
                       : 'Try adjusting your search or filters'
                     }
@@ -280,12 +280,11 @@ const DisplayController = ({ activeCampaign }) => {
 
 const DisplayImageCard = ({ image, isCurrentlyDisplayed, onDisplay }) => {
   return (
-    <div 
-      className={`group relative aspect-square rounded-md overflow-hidden border-2 cursor-pointer transition-all ${
-        isCurrentlyDisplayed 
-          ? 'border-emerald-500 ring-2 ring-emerald-500/50' 
+    <div
+      className={`group relative aspect-square rounded-md overflow-hidden border-2 cursor-pointer transition-all ${isCurrentlyDisplayed
+          ? 'border-emerald-500 ring-2 ring-emerald-500/50'
           : 'border-slate-700 hover:border-amber-500'
-      }`}
+        }`}
       onClick={onDisplay}
       title={image.name}
     >
@@ -294,7 +293,7 @@ const DisplayImageCard = ({ image, isCurrentlyDisplayed, onDisplay }) => {
         alt={image.name}
         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
       />
-      
+
       {/* Overlay on hover */}
       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
         <div className="text-center text-white">
